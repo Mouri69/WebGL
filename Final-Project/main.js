@@ -8,6 +8,29 @@ let isNight = false;
 let isDoorOpen = false;
 let doorAngle = 0;
 let isAnimatingDoor = false;
+let starRotation = 0;
+const mat4 = {
+    create: function() {
+        return new Float32Array([
+            1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1
+        ]);
+    },
+    rotate: function(out, rad, axis) {
+        const s = Math.sin(rad);
+        const c = Math.cos(rad);
+        
+        if (axis === 'Y') {
+            out[0] = c;
+            out[2] = -s;
+            out[8] = s;
+            out[10] = c;
+        }
+        return out;
+    }
+};
 
 function initGL() {
     const canvas = document.getElementById('glCanvas');
@@ -69,6 +92,7 @@ function draw() {
     drawLandscape();
     drawTree();
     drawHouse();
+    drawStar();
     drawRoad();
     drawCar();
 
@@ -292,6 +316,100 @@ function drawShape(vertices, color, useGradient, gradientColor1, gradientColor2)
     }
 
     gl.drawArrays(gl.TRIANGLE_FAN, 0, vertices.length / 2);
+}
+
+function drawStar() {
+    // Only draw star at night
+    if (!isNight) return;
+
+    const starPoints = 5;  // Number of points in the star
+    const outerRadius = 0.05;
+    const innerRadius = outerRadius * 0.4;
+    const centerX = 0.6;  // Star position
+    const centerY = 0.6;
+    const depth = 0.02;   // Star thickness
+
+    const vertices = [];
+    const normals = [];
+
+    // Create star points
+    for (let i = 0; i < starPoints * 2; i++) {
+        const radius = i % 2 === 0 ? outerRadius : innerRadius;
+        const angle = (i * Math.PI) / starPoints;
+        const x = Math.cos(angle) * radius;
+        const y = Math.sin(angle) * radius;
+
+        // Front face vertices
+        vertices.push(centerX + x, centerY + y, depth);
+        // Back face vertices
+        vertices.push(centerX + x, centerY + y, -depth);
+
+        // Calculate normals
+        const nx = Math.cos(angle);
+        const ny = Math.sin(angle);
+        normals.push(nx, ny, 1);
+        normals.push(nx, ny, -1);
+    }
+
+    // Set up matrices
+    const modelMatrix = mat4.create();
+    mat4.rotate(modelMatrix, starRotation, 'Y');
+
+    const viewMatrix = mat4.create();
+    viewMatrix[14] = -3.0;
+
+    const projMatrix = mat4.create();
+    const aspect = gl.canvas.width / gl.canvas.height;
+    const fov = Math.PI / 4;
+    projMatrix[5] = 1 / Math.tan(fov / 2);
+    projMatrix[0] = projMatrix[5] / aspect;
+    projMatrix[10] = -1;
+    projMatrix[11] = -1;
+
+    // Draw the star
+    const starColor = [1.0, 1.0, 0.0, 1.0]; // Yellow color
+    draw3DShape(new Float32Array(vertices), new Float32Array(normals), starColor,
+                modelMatrix, viewMatrix, projMatrix);
+
+    // Update rotation
+    starRotation += 0.02;
+}
+
+function draw3DShape(vertices, normals, color, modelMatrix, viewMatrix, projMatrix) {
+    const vertexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+    const normalBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW);
+
+    const positionLoc = gl.getAttribLocation(program, 'a_position');
+    const normalLoc = gl.getAttribLocation(program, 'a_normal');
+    const is3DLoc = gl.getUniformLocation(program, 'u_is3D');
+    const modelLoc = gl.getUniformLocation(program, 'u_modelMatrix');
+    const viewLoc = gl.getUniformLocation(program, 'u_viewMatrix');
+    const projLoc = gl.getUniformLocation(program, 'u_projectionMatrix');
+    const lightDirLoc = gl.getUniformLocation(program, 'u_lightDirection');
+    const colorLoc = gl.getUniformLocation(program, 'u_color');
+
+    gl.uniform1i(is3DLoc, true);
+    gl.uniformMatrix4fv(modelLoc, false, modelMatrix);
+    gl.uniformMatrix4fv(viewLoc, false, viewMatrix);
+    gl.uniformMatrix4fv(projLoc, false, projMatrix);
+    gl.uniform3fv(lightDirLoc, new Float32Array([1, 2, 3]));
+    gl.uniform4fv(colorLoc, color);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    gl.enableVertexAttribArray(positionLoc);
+    gl.vertexAttribPointer(positionLoc, 3, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+    gl.enableVertexAttribArray(normalLoc);
+    gl.vertexAttribPointer(normalLoc, 3, gl.FLOAT, false, 0, 0);
+
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, vertices.length / 3);
+    gl.uniform1i(is3DLoc, false);
 }
 
 window.onload = function() {
