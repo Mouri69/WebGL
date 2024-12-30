@@ -323,11 +323,12 @@ function drawStar() {
     if (!isNight) return;
 
     const starPoints = 5;  // Number of points in the star
-    const outerRadius = 0.05;
+    const outerRadius = 0.07;  // Increased from 0.04 to 0.07
     const innerRadius = outerRadius * 0.4;
-    const centerX = 0.6;  // Star position
-    const centerY = 0.6;
-    const depth = 0.02;   // Star thickness
+    // Adjusted position to fit better with larger size
+    const centerX = 0.0;   // Center aligned with tree
+    const centerY = 0.2;   // Moved up slightly to account for larger size
+    const depth = 0.03;    // Increased thickness slightly
 
     const vertices = [];
     const normals = [];
@@ -335,7 +336,7 @@ function drawStar() {
     // Create star points
     for (let i = 0; i < starPoints * 2; i++) {
         const radius = i % 2 === 0 ? outerRadius : innerRadius;
-        const angle = (i * Math.PI) / starPoints;
+        const angle = (i * Math.PI) / starPoints + Math.PI / 2; // Rotate 90 degrees to point upward
         const x = Math.cos(angle) * radius;
         const y = Math.sin(angle) * radius;
 
@@ -366,13 +367,13 @@ function drawStar() {
     projMatrix[10] = -1;
     projMatrix[11] = -1;
 
-    // Draw the star
-    const starColor = [1.0, 1.0, 0.0, 1.0]; // Yellow color
+    // Draw the star with a bright gold color
+    const starColor = isNight ? [1.0, 0.9, 0.2, 1.0] : [1.0, 0.8, 0.0, 1.0];
     draw3DShape(new Float32Array(vertices), new Float32Array(normals), starColor,
                 modelMatrix, viewMatrix, projMatrix);
 
-    // Update rotation
-    starRotation += 0.02;
+    // Slower rotation for more elegance
+    starRotation += 0.01;
 }
 
 function draw3DShape(vertices, normals, color, modelMatrix, viewMatrix, projMatrix) {
